@@ -1,0 +1,29 @@
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(320) NOT NULL UNIQUE,
+    hashed_password VARCHAR(96) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE refresh_token (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    hashed_token VARCHAR(500) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + '1 day',
+    PRIMARY KEY (user_id, hashed_token)
+);
+
+CREATE TABLE reports (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    report_type VARCHAR NOT NULL,
+    output_file_path VARCHAR,
+    download_url VARCHAR,
+    download_url_expires_at TIMESTAMPTZ,
+    error_message VARCHAR,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMPTZ,
+    failed_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    PRIMARY KEY (user_id, id)
+);
