@@ -1,0 +1,8 @@
+export PROJECT_ROOT=$(pwd)
+export DB_NAME=asyncapi
+export DB_HOST=127.0.0.1
+export DB_USER=
+export DB_PASSWORD=
+export DB_PORT=5432
+export DB_PORT_TEST=5433
+export DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
