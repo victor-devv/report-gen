@@ -52,7 +52,7 @@ func (te *TestEnv) SetupDb(t *testing.T) func(t *testing.T) {
 func (te *TestEnv) TeardownDb(t *testing.T) {
 	_, err := te.Db.Exec(fmt.Sprintf("TRUNCATE TABLE %s", strings.Join([]string{
 		"users",
-		"reresh_tokens",
+		"refresh_token",
 		"reports",
 	}, ", ")))
 	require.NoError(t, err)
