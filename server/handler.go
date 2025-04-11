@@ -2,8 +2,8 @@ package server
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 )
 
@@ -24,37 +24,28 @@ func (r SignupRequest) Validate() error {
 	return nil
 }
 
-func (s *Server) signupHandler(w http.ResponseWriter, r *http.Request) {
-	var req SignupRequest
+func (s *Server) signupHandler() http.HandlerFunc {
+	return handleWithError(func(w http.ResponseWriter, r *http.Request) error {
+		req, err := decode[SignupRequest](r)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusBadRequest)
+		}
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		ErrorResponse(w, Error, "an error occurred: "+err.Error(), http.StatusBadRequest, (*struct{})(nil))
-		return
-	}
+		userExists, err := s.store.Users.ByEmail(r.Context(), req.Email)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
 
-	defer r.Body.Close()
+		if userExists != nil {
+			return NewErrWithStatus(fmt.Errorf("a user with matching details already exists: %v", err), http.StatusConflict)
+		}
 
-	if err := req.Validate(); err != nil {
-		ErrorResponse(w, Error, "a validation error occurred: "+err.Error(), http.StatusBadRequest, (*struct{})(nil))
-		return
-	}
+		user, err := s.store.Users.CreateUser(r.Context(), req.Email, req.Password)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
 
-	userExists, err := s.store.Users.ByEmail(r.Context(), req.Email)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		ErrorResponse(w, Error, "an error occurred: "+err.Error(), http.StatusInternalServerError, (*struct{})(nil))
-		return
-	}
-
-	if userExists != nil {
-		ErrorResponse(w, Error, "a user with matching details already exists", http.StatusConflict, (*struct{})(nil))
-		return
-	}
-
-	user, err := s.store.Users.CreateUser(r.Context(), req.Email, req.Password)
-	if err != nil {
-		ErrorResponse(w, Error, err.Error(), http.StatusConflict, (*struct{})(nil))
-		return
-	}
-
-	SuccessResponse(w, http.StatusCreated, "user created successfully", &user)
+		successResponse(w, http.StatusCreated, "user created successfully", &user)
+		return nil
+	})
 }
