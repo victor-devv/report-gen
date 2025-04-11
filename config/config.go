@@ -13,6 +13,8 @@ const (
 )
 
 type Config struct {
+	ServerHost       string `env:"SERVER_HOST"`
+	ServerPort       string `env:"SERVER_PORT"`
 	DatabaseName     string `env:"DB_NAME"`
 	DatabaseHost     string `env:"DB_HOST"`
 	DatabasePort     string `env:"DB_PORT"`

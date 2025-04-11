@@ -1,4 +1,6 @@
 export PROJECT_ROOT=$(pwd)
+export SERVER_HOST=localhost
+export SERVER_PORT=4000
 export DB_NAME=asyncapi
 export DB_HOST=127.0.0.1
 export DB_USER=
