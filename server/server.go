@@ -2,6 +2,7 @@ package server
 
 import (
 	"asyncapi/config"
+	"asyncapi/store"
 	"context"
 	"log/slog"
 	"net"
@@ -13,12 +14,14 @@ import (
 type Server struct {
 	config *config.Config
 	logger *slog.Logger
+	store  *store.Store
 }
 
-func New(config *config.Config, logger *slog.Logger) *Server {
+func New(config *config.Config, logger *slog.Logger, store *store.Store) *Server {
 	return &Server{
 		config: config,
 		logger: logger,
+		store:  store,
 	}
 }
 
@@ -29,7 +32,8 @@ func (s *Server) ping(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ping", s.ping)
+	mux.HandleFunc("GET /ping", s.ping)
+	mux.HandleFunc("POST /auth/signup", s.signupHandler)
 
 	middleware := NewLoggerMiddleware(s.logger)
 

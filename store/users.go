@@ -24,10 +24,10 @@ func NewUserStore(db *sql.DB) *UserStore {
 }
 
 type User struct {
-	Id                   uuid.UUID `db:"id"`
-	Email                string    `db:"email"`
-	HashedPasswordBase64 string    `db:"hashed_password"`
-	CreatedAt            time.Time `db:"created_at"`
+	Id                   uuid.UUID `db:"id" json:"id"`
+	Email                string    `db:"email" json:"email"`
+	HashedPasswordBase64 string    `db:"hashed_password" json:"-"`
+	CreatedAt            time.Time `db:"created_at" json:"created_at"`
 }
 
 func (u *User) ComparePassword(password string) error {
@@ -82,7 +82,7 @@ func (s *UserStore) ByEmail(ctx context.Context, email string) (*User, error) {
 
 	if err := s.db.GetContext(ctx, &user, query, email); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("user not found")
+			return nil, err
 		}
 		return nil, fmt.Errorf("failed to fetch user: %w", err)
 	}
