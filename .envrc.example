@@ -8,3 +8,4 @@ export DB_PASSWORD=
 export DB_PORT=5432
 export DB_PORT_TEST=5433
 export DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable
+export JWT_SECRET=

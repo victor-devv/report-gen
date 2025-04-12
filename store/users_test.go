@@ -1,9 +1,9 @@
 package store_test
 
 import (
-	"asyncapi/fixtures"
-	"asyncapi/store"
 	"context"
+	"github.com/victor-devv/report-gen/fixtures"
+	"github.com/victor-devv/report-gen/store"
 	"testing"
 	"time"
 

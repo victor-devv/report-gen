@@ -2,3 +2,4 @@
 .vscode
 pgdata
 .envrc
+__debug*

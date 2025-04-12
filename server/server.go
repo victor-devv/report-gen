@@ -1,9 +1,9 @@
 package server
 
 import (
-	"asyncapi/config"
-	"asyncapi/store"
 	"context"
+	"github.com/victor-devv/report-gen/config"
+	"github.com/victor-devv/report-gen/store"
 	"log/slog"
 	"net"
 	"net/http"

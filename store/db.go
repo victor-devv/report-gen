@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"asyncapi/config"
 	_ "github.com/lib/pq"
+	"github.com/victor-devv/report-gen/config"
 )
 
 func NewPostgresDb(conf *config.Config) (*sql.DB, error) {

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"asyncapi/config"
-	"asyncapi/server"
-	"asyncapi/store"
 	"context"
+	"github.com/victor-devv/report-gen/config"
+	"github.com/victor-devv/report-gen/server"
+	"github.com/victor-devv/report-gen/store"
 	"log"
 	"log/slog"
 	"os"

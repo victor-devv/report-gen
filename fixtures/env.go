@@ -1,10 +1,10 @@
 package fixtures
 
 import (
-	"asyncapi/config"
-	"asyncapi/store"
 	"database/sql"
 	"fmt"
+	"github.com/victor-devv/report-gen/config"
+	"github.com/victor-devv/report-gen/store"
 	"os"
 	"strings"
 	"testing"
