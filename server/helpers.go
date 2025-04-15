@@ -66,9 +66,6 @@ func decode[T Validator](r *http.Request) (T, error) {
 }
 
 func errorResponse[T any](w http.ResponseWriter, status Status, message string, httpStatusCode int, data T) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpStatusCode)
-
 	errorResponse := ApiResponse[T]{
 		Status:  status.String(),
 		Message: message,
@@ -80,9 +77,6 @@ func errorResponse[T any](w http.ResponseWriter, status Status, message string, 
 }
 
 func successResponse[T any](w http.ResponseWriter, httpStatusCode int, message string, data T) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(httpStatusCode)
-
 	response := ApiResponse[T]{
 		Status:  Success.String(),
 		Message: message,

@@ -32,17 +32,33 @@ func (s *Server) ping(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("pong"))
 }
 
+type Middleware func(http.Handler) http.Handler
+
+// Chain creates a single middleware from multiple middlewares
+func Chain(middlewares ...Middleware) Middleware {
+	return func(final http.Handler) http.Handler {
+		for i := len(middlewares) - 1; i >= 0; i-- {
+			final = middlewares[i](final)
+		}
+		return final
+	}
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /ping", s.ping)
 	mux.HandleFunc("POST /api/v1/auth/signup", s.signupHandler())
 	mux.HandleFunc("POST /api/v1/auth/signin", s.signInHandler())
 
-	middleware := NewLoggerMiddleware(s.logger)
+	loggerMiddleware := NewLoggerMiddleware(s.logger)
+	authMiddleware := NewAuthMiddleware(s.jwtManager, s.store.Users)
 
 	server := &http.Server{
-		Addr:    net.JoinHostPort(s.config.ServerHost, s.config.ServerPort),
-		Handler: middleware(mux),
+		Addr: net.JoinHostPort(s.config.ServerHost, s.config.ServerPort),
+		Handler: Chain(
+			loggerMiddleware,
+			authMiddleware,
+		)(mux),
 	}
 
 	go func() {
