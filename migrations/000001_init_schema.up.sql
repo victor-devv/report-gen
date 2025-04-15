@@ -5,11 +5,11 @@ CREATE TABLE users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE refresh_token (
+CREATE TABLE refresh_tokens (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     hashed_token VARCHAR(500) NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP + '1 day',
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP + '1 day',
     PRIMARY KEY (user_id, hashed_token)
 );
 
