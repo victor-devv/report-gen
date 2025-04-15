@@ -3,11 +3,13 @@ package store
 import "database/sql"
 
 type Store struct {
-	Users *UserStore
+	Users        *UserStore
+	RefreshToken *RefreshTokenStore
 }
 
 func New(db *sql.DB) *Store {
 	return &Store{
-		Users: NewUserStore(db),
+		Users:        NewUserStore(db),
+		RefreshToken: NewRefreshTokenStore(db),
 	}
 }
