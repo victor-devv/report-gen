@@ -44,7 +44,7 @@ func (u *User) ComparePassword(password string) error {
 	return nil
 }
 
-func (s *UserStore) CreateUser(ctx context.Context, email, password string) (*User, error) {
+func (s *UserStore) Create(ctx context.Context, email, password string) (*User, error) {
 	const dml = `INSERT INTO users (email, hashed_password) VALUES ($1, $2) RETURNING *`
 	var user User
 
