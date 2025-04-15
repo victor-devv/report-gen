@@ -49,6 +49,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("GET /ping", s.ping)
 	mux.HandleFunc("POST /api/v1/auth/signup", s.signupHandler())
 	mux.HandleFunc("POST /api/v1/auth/signin", s.signInHandler())
+	mux.HandleFunc("POST /api/v1/auth/token/refresh", s.refreshTokenHandler())
 
 	loggerMiddleware := NewLoggerMiddleware(s.logger)
 	authMiddleware := NewAuthMiddleware(s.jwtManager, s.store.Users)

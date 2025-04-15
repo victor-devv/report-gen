@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/victor-devv/report-gen/store"
 )
 
@@ -115,6 +117,81 @@ func (s *Server) signInHandler() http.HandlerFunc {
 			RefreshToken: tokenPair.RefreshToken.Raw,
 			User:         user,
 		})
+		return nil
+	})
+}
+
+type RefreshTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RefreshTokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (r RefreshTokenRequest) Validate() error {
+	if r.RefreshToken == "" {
+		return errors.New("refresh_token is required")
+	}
+
+	return nil
+}
+
+func (s *Server) refreshTokenHandler() http.HandlerFunc {
+	return handleWithError(func(w http.ResponseWriter, r *http.Request) error {
+		req, err := decode[RefreshTokenRequest](r)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusBadRequest)
+		}
+
+		currentRefreshToken, err := s.jwtManager.Parse(req.RefreshToken)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusUnauthorized)
+		}
+
+		userIdStr, err := currentRefreshToken.Claims.GetSubject()
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusUnauthorized)
+		}
+
+		userId, err := uuid.Parse(userIdStr)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusUnauthorized)
+		}
+
+		currentRefreshTokeRecord, err := s.store.RefreshToken.ByPrimaryKey(r.Context(), userId, currentRefreshToken)
+		if err != nil {
+			status := http.StatusInsufficientStorage
+			if errors.Is(err, sql.ErrNoRows) {
+				status = http.StatusUnauthorized
+			}
+			return NewErrWithStatus(err, status)
+		}
+
+		if currentRefreshTokeRecord.ExpiresAt.Before(time.Now()) {
+			return NewErrWithStatus(fmt.Errorf("refresh token expired: %w", err), http.StatusUnauthorized)
+		}
+
+		tokenPair, err := s.jwtManager.GenerateTokenPair(userId)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		_, err = s.store.RefreshToken.Delete(r.Context(), userId)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		if _, err := s.store.RefreshToken.Create(r.Context(), userId, tokenPair.RefreshToken); err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		successResponse(w, http.StatusOK, "", RefreshTokenResponse{
+			AccessToken:  tokenPair.AccessToken.Raw,
+			RefreshToken: tokenPair.RefreshToken.Raw,
+		})
+
 		return nil
 	})
 }

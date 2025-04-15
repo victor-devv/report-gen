@@ -77,7 +77,7 @@ func NewLoggerMiddleware(logger *slog.Logger) func(next http.Handler) http.Handl
 
 			requestBodyStr := string(requestBody)
 
-			logger.Info("HTTP request",
+			logger.Info("HTTP Request",
 				"request_id", requestID,
 				"method", r.Method,
 				"path", r.URL.EscapedPath(),
@@ -92,7 +92,7 @@ func NewLoggerMiddleware(logger *slog.Logger) func(next http.Handler) http.Handl
 
 			responseBodyStr := wrappedWriter.body.String()
 
-			logger.Info("HTTP response",
+			logger.Info("HTTP Response",
 				"request_id", requestID,
 				"method", r.Method,
 				"path", r.URL.EscapedPath(),
