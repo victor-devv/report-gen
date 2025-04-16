@@ -8,8 +8,10 @@ import (
 type Env string
 
 const (
-	Env_Test Env = "test"
-	Env_Dev  Env = "dev"
+	Env_Test    Env = "test"
+	Env_Dev     Env = "dev"
+	Env_Prod    Env = "production"
+	Env_Staging Env = "staging"
 )
 
 type Config struct {
@@ -24,6 +26,10 @@ type Config struct {
 	Env              Env    `env:"ENV" envDefault:"dev"`
 	ProjectRoot      string `env:"PROJECT_ROOT"`
 	JwtSecret        string `env:"JWT_SECRET"`
+	S3Endpoint       string `env:"S3_ENDPOINT"`
+	SqsEndpoint      string `env:"SQS_ENDPOINT"`
+	S3Bucket         string `env:"S3_BUCKET"`
+	SqsQueue         string `env:"SQS_QUEUE"`
 }
 
 func (c *Config) DatabaseUrl() string {
