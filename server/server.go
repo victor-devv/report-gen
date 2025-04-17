@@ -2,13 +2,15 @@ package server
 
 import (
 	"context"
-	"github.com/victor-devv/report-gen/config"
-	"github.com/victor-devv/report-gen/store"
 	"log/slog"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/victor-devv/report-gen/config"
+	"github.com/victor-devv/report-gen/store"
 )
 
 type Server struct {
@@ -16,14 +18,16 @@ type Server struct {
 	logger     *slog.Logger
 	store      *store.Store
 	jwtManager *JwtManager
+	sqsClient  *sqs.Client
 }
 
-func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager) *Server {
+func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client) *Server {
 	return &Server{
 		config:     config,
 		logger:     logger,
 		store:      store,
 		jwtManager: jwtManager,
+		sqsClient:  sqsClient,
 	}
 }
 
@@ -50,6 +54,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /api/v1/auth/signup", s.signupHandler())
 	mux.HandleFunc("POST /api/v1/auth/signin", s.signInHandler())
 	mux.HandleFunc("POST /api/v1/auth/token/refresh", s.refreshTokenHandler())
+	mux.HandleFunc("POST /api/v1/reports", s.createReportHandler())
 
 	loggerMiddleware := NewLoggerMiddleware(s.logger)
 	authMiddleware := NewAuthMiddleware(s.jwtManager, s.store.Users)

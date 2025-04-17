@@ -2,12 +2,16 @@ package server
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
+	"github.com/victor-devv/report-gen/reports"
 	"github.com/victor-devv/report-gen/store"
 )
 
@@ -190,6 +194,93 @@ func (s *Server) refreshTokenHandler() http.HandlerFunc {
 		successResponse(w, http.StatusOK, "", RefreshTokenResponse{
 			AccessToken:  tokenPair.AccessToken.Raw,
 			RefreshToken: tokenPair.RefreshToken.Raw,
+		})
+
+		return nil
+	})
+}
+
+type CreateReportRequest struct {
+	ReportType string `json:"report_type"`
+}
+
+type CreateReportResponse struct {
+	Id                   uuid.UUID  `json:"id"`
+	ReportType           string     `json:"report_type,omitempty"`
+	OutputFilePath       *string    `json:"output_file_path,omitempty"`
+	DownloadUrl          *string    `json:"download_url,omitempty"`
+	DownloadUrlExpiresAt *time.Time `json:"download_url_expires_at,omitempty"`
+	ErrorMessage         *string    `json:"error_message,omitempty"`
+	CreatedAt            time.Time  `json:"created_at,omitempty"`
+	StartedAt            *time.Time `json:"started_at,omitempty"`
+	FailedAt             *time.Time `json:"failed_at,omitempty"`
+	CompletedAt          *time.Time `json:"completed_at,omitempty"`
+	Status               string     `json:"status,omitempty"`
+}
+
+func (r CreateReportRequest) Validate() error {
+	if r.ReportType == "" {
+		return errors.New("report_type is required")
+	}
+
+	return nil
+}
+
+func (s *Server) createReportHandler() http.HandlerFunc {
+	return handleWithError(func(w http.ResponseWriter, r *http.Request) error {
+		req, err := decode[CreateReportRequest](r)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusBadRequest)
+		}
+
+		user, ok := GetUserFromContext(r.Context())
+		if !ok {
+			return NewErrWithStatus(err, http.StatusUnauthorized)
+		}
+
+		report, err := s.store.Reports.Create(r.Context(), user.Id, req.ReportType)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		// send to SQS to beb picked up by worker
+		sqsMessage := reports.SqsMessage{
+			UserId:   user.Id,
+			ReportId: report.Id,
+		}
+
+		bytes, err := json.Marshal(sqsMessage)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		queueUrlOut, err := s.sqsClient.GetQueueUrl(r.Context(), &sqs.GetQueueUrlInput{
+			QueueName: aws.String(s.config.SqsQueue),
+		})
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		_, err = s.sqsClient.SendMessage(r.Context(), &sqs.SendMessageInput{
+			QueueUrl:    queueUrlOut.QueueUrl,
+			MessageBody: aws.String(string(bytes)),
+		})
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		successResponse(w, http.StatusCreated, "", CreateReportResponse{
+			Id:                   report.Id,
+			ReportType:           report.ReportType,
+			OutputFilePath:       report.OutputFilePath,
+			DownloadUrl:          report.DownloadUrl,
+			DownloadUrlExpiresAt: report.DownloadUrlExpiresAt,
+			ErrorMessage:         report.ErrorMessage,
+			CreatedAt:            report.CreatedAt,
+			StartedAt:            report.StartedAt,
+			FailedAt:             report.FailedAt,
+			CompletedAt:          report.CompletedAt,
+			Status:               report.Status(),
 		})
 
 		return nil
