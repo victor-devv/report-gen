@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/google/uuid"
 	"github.com/victor-devv/report-gen/reports"
@@ -270,6 +271,66 @@ func (s *Server) createReportHandler() http.HandlerFunc {
 		}
 
 		successResponse(w, http.StatusCreated, "", CreateReportResponse{
+			Id:                   report.Id,
+			ReportType:           report.ReportType,
+			OutputFilePath:       report.OutputFilePath,
+			DownloadUrl:          report.DownloadUrl,
+			DownloadUrlExpiresAt: report.DownloadUrlExpiresAt,
+			ErrorMessage:         report.ErrorMessage,
+			CreatedAt:            report.CreatedAt,
+			StartedAt:            report.StartedAt,
+			FailedAt:             report.FailedAt,
+			CompletedAt:          report.CompletedAt,
+			Status:               report.Status(),
+		})
+
+		return nil
+	})
+}
+
+func (s *Server) getReportHandler() http.HandlerFunc {
+	return handleWithError(func(w http.ResponseWriter, r *http.Request) error {
+		reportIdStr := r.PathValue("report")
+		reportId, err := uuid.Parse(reportIdStr)
+		if err != nil {
+			return NewErrWithStatus(err, http.StatusBadRequest)
+		}
+
+		user, ok := GetUserFromContext(r.Context())
+		if !ok {
+			return NewErrWithStatus(err, http.StatusUnauthorized)
+		}
+
+		report, err := s.store.Reports.ByPrimaryKey(r.Context(), reportId, user.Id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return NewErrWithStatus(err, http.StatusNotFound)
+			}
+			return NewErrWithStatus(err, http.StatusInternalServerError)
+		}
+
+		if report.CompletedAt != nil && report.DownloadUrlExpiresAt != nil && report.DownloadUrlExpiresAt.Before(time.Now()) {
+			// to s3 client (presigned)
+			expiresAt := time.Now().Add(10 * time.Second)
+			signedUrl, err := s.preSignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
+				Bucket: aws.String(s.config.S3Bucket),
+				Key:    report.OutputFilePath,
+			}, func(options *s3.PresignOptions) {
+				options.Expires = time.Until(expiresAt)
+			})
+			if err != nil {
+				return NewErrWithStatus(err, http.StatusInternalServerError)
+			}
+
+			report.DownloadUrl = &signedUrl.URL
+			report.DownloadUrlExpiresAt = &expiresAt
+			report, err = s.store.Reports.Update(r.Context(), report)
+			if err != nil {
+				return NewErrWithStatus(err, http.StatusInternalServerError)
+			}
+		}
+
+		successResponse(w, http.StatusOK, "", CreateReportResponse{
 			Id:                   report.Id,
 			ReportType:           report.ReportType,
 			OutputFilePath:       report.OutputFilePath,

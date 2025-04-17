@@ -8,26 +8,29 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/victor-devv/report-gen/config"
 	"github.com/victor-devv/report-gen/store"
 )
 
 type Server struct {
-	config     *config.Config
-	logger     *slog.Logger
-	store      *store.Store
-	jwtManager *JwtManager
-	sqsClient  *sqs.Client
+	config        *config.Config
+	logger        *slog.Logger
+	store         *store.Store
+	jwtManager    *JwtManager
+	sqsClient     *sqs.Client
+	preSignClient *s3.PresignClient
 }
 
-func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client) *Server {
+func New(config *config.Config, logger *slog.Logger, store *store.Store, jwtManager *JwtManager, sqsClient *sqs.Client, preSignClient *s3.PresignClient) *Server {
 	return &Server{
-		config:     config,
-		logger:     logger,
-		store:      store,
-		jwtManager: jwtManager,
-		sqsClient:  sqsClient,
+		config:        config,
+		logger:        logger,
+		store:         store,
+		jwtManager:    jwtManager,
+		sqsClient:     sqsClient,
+		preSignClient: preSignClient,
 	}
 }
 
@@ -55,6 +58,7 @@ func (s *Server) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /api/v1/auth/signin", s.signInHandler())
 	mux.HandleFunc("POST /api/v1/auth/token/refresh", s.refreshTokenHandler())
 	mux.HandleFunc("POST /api/v1/reports", s.createReportHandler())
+	mux.HandleFunc("GET /api/v1/reports/{report}", s.getReportHandler())
 
 	loggerMiddleware := NewLoggerMiddleware(s.logger)
 	authMiddleware := NewAuthMiddleware(s.jwtManager, s.store.Users)

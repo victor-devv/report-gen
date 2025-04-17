@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/victor-devv/report-gen/config"
 	"github.com/victor-devv/report-gen/server"
@@ -48,13 +49,22 @@ func run() error {
 		}
 	})
 
+	s3Client := s3.NewFromConfig(sdkConfig, func(options *s3.Options) {
+		if conf.Env != config.Env_Prod {
+			options.BaseEndpoint = aws.String(conf.S3Endpoint)
+			options.UsePathStyle = true
+		}
+	})
+
+	preSignClient := s3.NewPresignClient(s3Client)
+
 	db, err := store.NewPostgresDb(conf)
 	if err != nil {
 		return err
 	}
 	store := store.New(db)
 
-	server := server.New(conf, logger, store, jwtManager, sqsClient)
+	server := server.New(conf, logger, store, jwtManager, sqsClient, preSignClient)
 	if err := server.Start(ctx); err != nil {
 		return err
 	}
