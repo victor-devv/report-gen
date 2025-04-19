@@ -310,7 +310,7 @@ func (s *Server) getReportHandler() http.HandlerFunc {
 		}
 
 		if report.CompletedAt != nil && report.DownloadUrlExpiresAt != nil && report.DownloadUrlExpiresAt.Before(time.Now()) {
-			// to s3 client (presigned)
+			// CREATE PRESIGNED URL
 			expiresAt := time.Now().Add(10 * time.Second)
 			signedUrl, err := s.preSignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
 				Bucket: aws.String(s.config.S3Bucket),
