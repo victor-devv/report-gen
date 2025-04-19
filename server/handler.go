@@ -309,24 +309,28 @@ func (s *Server) getReportHandler() http.HandlerFunc {
 			return NewErrWithStatus(err, http.StatusInternalServerError)
 		}
 
-		if report.CompletedAt != nil && report.DownloadUrlExpiresAt != nil && report.DownloadUrlExpiresAt.Before(time.Now()) {
-			// CREATE PRESIGNED URL
-			expiresAt := time.Now().Add(10 * time.Second)
-			signedUrl, err := s.preSignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
-				Bucket: aws.String(s.config.S3Bucket),
-				Key:    report.OutputFilePath,
-			}, func(options *s3.PresignOptions) {
-				options.Expires = time.Until(expiresAt)
-			})
-			if err != nil {
-				return NewErrWithStatus(err, http.StatusInternalServerError)
-			}
+		if report.CompletedAt != nil {
+			needsRefresh := report.DownloadUrlExpiresAt != nil && report.DownloadUrlExpiresAt.Before(time.Now())
 
-			report.DownloadUrl = &signedUrl.URL
-			report.DownloadUrlExpiresAt = &expiresAt
-			report, err = s.store.Reports.Update(r.Context(), report)
-			if err != nil {
-				return NewErrWithStatus(err, http.StatusInternalServerError)
+			if report.DownloadUrl == nil || needsRefresh {
+				// CREATE PRESIGNED URL
+				expiresAt := time.Now().Add(10 * time.Second)
+				signedUrl, err := s.preSignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
+					Bucket: aws.String(s.config.S3Bucket),
+					Key:    report.OutputFilePath,
+				}, func(options *s3.PresignOptions) {
+					options.Expires = time.Until(expiresAt)
+				})
+				if err != nil {
+					return NewErrWithStatus(err, http.StatusInternalServerError)
+				}
+
+				report.DownloadUrl = &signedUrl.URL
+				report.DownloadUrlExpiresAt = &expiresAt
+				report, err = s.store.Reports.Update(r.Context(), report)
+				if err != nil {
+					return NewErrWithStatus(err, http.StatusInternalServerError)
+				}
 			}
 		}
 

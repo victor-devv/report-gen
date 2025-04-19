@@ -47,13 +47,23 @@ func (w *Worker) Start(ctx context.Context) error {
 	// create go routines that matches max concurrency
 	for i := 0; i < w.concurrency; i++ {
 		go func(id int) {
+			w.logger.Info(fmt.Sprintf("starting worker #%d", id))
 			for {
 				select {
 				case <-ctx.Done():
 					w.logger.Info("stopping worker", "goroutine_id", id, "error", ctx.Err())
 				case message := <-w.channel:
-					if err := w.processMessage(ctx, message, queueUrlOutput.QueueUrl); err != nil {
+					if err := w.processMessage(ctx, message); err != nil {
 						w.logger.Error("failed to process message", "error", err, "goroutine_id", id)
+						continue
+					}
+
+					// remove message from queue
+					if _, err := w.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
+						QueueUrl:      queueUrlOutput.QueueUrl,
+						ReceiptHandle: message.ReceiptHandle,
+					}); err != nil {
+						w.logger.Error("failed to delete message %s: %w", *message.MessageId, err)
 					}
 				}
 			}
@@ -83,7 +93,8 @@ func (w *Worker) Start(ctx context.Context) error {
 	}
 }
 
-func (w *Worker) processMessage(ctx context.Context, message types.Message, queueUrl *string) error {
+func (w *Worker) processMessage(ctx context.Context, message types.Message) error {
+	w.logger.Info("processing message", "message_id", *message.MessageId, "body", *message.Body)
 	if message.Body == nil || *message.Body == "" {
 		w.logger.Warn("message body is empty", "message_id", *message.MessageId)
 		return nil
@@ -102,14 +113,6 @@ func (w *Worker) processMessage(ctx context.Context, message types.Message, queu
 	_, err := w.builder.Build(builderCtx, msg.UserId, msg.ReportId)
 	if err != nil {
 		return fmt.Errorf("failed to build report: %w", err)
-	}
-
-	// remove message from queue
-	if _, err := w.sqsClient.DeleteMessage(ctx, &sqs.DeleteMessageInput{
-		QueueUrl:      queueUrl,
-		ReceiptHandle: message.ReceiptHandle,
-	}); err != nil {
-		return fmt.Errorf("failed to delete message %s: %w", *message.MessageId, err)
 	}
 
 	return nil
